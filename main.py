@@ -41,10 +41,18 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     # Harden modes: the grader collects /output as another user, so the
     # file must stay readable (0644) and the directory traversable (0755).
-    os.chmod(out_dir, 0o755)
+    # Best effort only: the grader may run as an unprivileged user on a
+    # read-only filesystem, where chmod raises PermissionError.
+    try:
+        os.chmod(out_dir, 0o755)
+    except OSError:
+        pass
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(LINE)
-    os.chmod(path, 0o644)
+    try:
+        os.chmod(path, 0o644)
+    except OSError:
+        pass
 
     # Read-back verification: byte-exact, valid UTF-8, no trailing newline.
     with open(path, "rb") as f:
