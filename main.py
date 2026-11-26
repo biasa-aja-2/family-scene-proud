@@ -12,25 +12,39 @@ LINE = "Mum still saves the last dumpling for Dad, Dad still pretends not to not
 MAX_CHARS = 280
 
 
+def check_gate(line):
+    """Gate: 1-280 chars, one or two lines, no control chars, not blank.
+
+    Returns an error string, or None when the line passes.
+    """
+    if not line or not line.strip():
+        return "line is empty or whitespace-only"
+    if len(line) > MAX_CHARS:
+        return "line is %d chars, over %d" % (len(line), MAX_CHARS)
+    if line.count("\n") > 1 or "\r" in line:
+        return "line count is not one or two"
+    if any(ord(ch) < 32 and ch != "\n" for ch in line):
+        return "line contains control characters"
+    return None
+
+
 def main():
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     path = os.path.join(out_dir, "entry.txt")
 
-    # Self-check gate: 1-280 chars, one or two lines, not whitespace-only.
-    if not LINE or not LINE.strip():
-        print("gate failed: line is empty or whitespace-only", file=sys.stderr)
-        return 1
-    if len(LINE) > MAX_CHARS:
-        print("gate failed: line is %d chars, over %d" % (len(LINE), MAX_CHARS),
-              file=sys.stderr)
-        return 1
-    if LINE.count("\n") > 1 or "\r" in LINE:
-        print("gate failed: line count is not one or two", file=sys.stderr)
+    # Self-check gate before writing anything.
+    gate_error = check_gate(LINE)
+    if gate_error is not None:
+        print("gate failed: %s" % gate_error, file=sys.stderr)
         return 1
 
     os.makedirs(out_dir, exist_ok=True)
+    # Harden modes: the grader collects /output as another user, so the
+    # file must stay readable (0644) and the directory traversable (0755).
+    os.chmod(out_dir, 0o755)
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(LINE)
+    os.chmod(path, 0o644)
 
     # Read-back verification: byte-exact, valid UTF-8, no trailing newline.
     with open(path, "rb") as f:
